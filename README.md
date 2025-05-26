@@ -72,12 +72,12 @@ Edit the `load_config()` function in `telegram_news_monitor.py` to specify your 
 default_channels = [
     ChannelConfig(
         name="Fox News",
-        username="foxnews",  # Telegram username without @
+        tg_chan_name="foxnews",  # Telegram channel name without @
         affiliation="right-wing"
     ),
     ChannelConfig(
         name="CNN",
-        username="cnn",
+        tg_chan_name="cnn",
         affiliation="left-wing"
     ),
     # Add more channels...

@@ -1,7 +1,7 @@
 import asyncio
 import platform
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional, Set
 from collections import defaultdict
 import os
@@ -29,7 +29,7 @@ class ChannelConfig(BaseModel):
     """Configuration for a Telegram channel"""
 
     name: str = Field(..., description="Human-readable name of the channel")
-    username: str = Field(..., description="Telegram username (without @)")
+    tg_chan_name: str = Field(..., description="Telegram channel name (without @)")
     affiliation: str = Field(
         ..., description="Political affiliation: 'right-wing' or 'left-wing'"
     )
@@ -70,8 +70,8 @@ class DetectedTopic(BaseModel):
     topic_name: str = Field(..., description="Brief name for the topic")
     right_wing_messages: List[TelegramMessage] = Field(default_factory=list)
     left_wing_messages: List[TelegramMessage] = Field(default_factory=list)
-    first_detected: datetime = Field(default_factory=datetime.now)
-    last_updated: datetime = Field(default_factory=datetime.now)
+    first_detected: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     confidence_score: float = Field(..., description="Detection confidence")
 
 
@@ -97,26 +97,16 @@ class AppConfig(BaseModel):
 def load_config() -> AppConfig:
     """Load configuration from environment variables and defaults"""
 
-    # Default channels for testing - replace with actual channel usernames
+    # Default channels for testing - replace with actual channel names
     default_channels = [
         ChannelConfig(
-            name="Right Wing News 1",
-            username="rightwing_news_1",  # Replace with actual username
+            name="yinon-magal",
+            tg_chan_name="yinonews",  # Replace with actual channel name
             affiliation="right-wing",
         ),
         ChannelConfig(
-            name="Right Wing News 2",
-            username="rightwing_news_2",  # Replace with actual username
-            affiliation="right-wing",
-        ),
-        ChannelConfig(
-            name="Left Wing News 1",
-            username="leftwing_news_1",  # Replace with actual username
-            affiliation="left-wing",
-        ),
-        ChannelConfig(
-            name="Left Wing News 2",
-            username="leftwing_news_2",  # Replace with actual username
+            name="N12",
+            tg_chan_name="N12chat",  # Replace with actual channel name
             affiliation="left-wing",
         ),
     ]
@@ -137,7 +127,7 @@ class TelegramNewsMonitor:
     def __init__(self, config: AppConfig):
         self.config = config
         self.client = None
-        self.last_check_time = datetime.now() - timedelta(
+        self.last_check_time = datetime.now(timezone.utc) - timedelta(
             hours=1
         )  # Start with 1 hour ago
         self.topic_detection_agent = self._create_topic_detection_agent()
@@ -193,11 +183,11 @@ class TelegramNewsMonitor:
         for channel in self.config.channels:
             try:
                 logger.info(
-                    f"Fetching messages from {channel.name} (@{channel.username})"
+                    f"Fetching messages from {channel.name} (@{channel.tg_chan_name})"
                 )
 
                 # Get the channel entity
-                entity = await self.client.get_entity(channel.username)
+                entity = await self.client.get_entity(channel.tg_chan_name)
 
                 # Fetch recent messages
                 messages = await self.client.get_messages(
@@ -284,7 +274,7 @@ class TelegramNewsMonitor:
                     topic = self.detected_topics[topic_id]
                     topic.right_wing_messages.extend(right_wing_msgs)
                     topic.left_wing_messages.extend(left_wing_msgs)
-                    topic.last_updated = datetime.now()
+                    topic.last_updated = datetime.now(timezone.utc)
                     logger.info(
                         f"Updated existing topic: {topic.topic_name} (ID: {topic_id})"
                     )
@@ -331,7 +321,7 @@ class TelegramNewsMonitor:
 
     def clear_old_topics(self, hours_old: int = 24):
         """Clear topics older than specified hours"""
-        cutoff_time = datetime.now() - timedelta(hours=hours_old)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours_old)
         topics_to_remove = [
             topic_id
             for topic_id, topic in self.detected_topics.items()
@@ -396,7 +386,7 @@ class TelegramNewsMonitor:
             messages = await self.fetch_recent_messages()
 
             # Update last check time
-            self.last_check_time = datetime.now()
+            self.last_check_time = datetime.now(timezone.utc)
 
             if not messages:
                 logger.info("No new messages found")
@@ -428,7 +418,9 @@ class TelegramNewsMonitor:
         print(f"🚀 Starting Telegram News Monitor")
         print(f"📺 Monitoring {len(self.config.channels)} channels:")
         for channel in self.config.channels:
-            print(f"   - {channel.name} (@{channel.username}) [{channel.affiliation}]")
+            print(
+                f"   - {channel.name} (@{channel.tg_chan_name}) [{channel.affiliation}]"
+            )
         print(f"⏱️  Check interval: {self.config.interval_minutes} minutes")
         print(f"🤖 Using model: {self.config.llm_model}")
         print("-" * 60)

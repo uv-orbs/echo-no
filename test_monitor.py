@@ -23,7 +23,7 @@ def test_pydantic_models():
     # Test ChannelConfig
     try:
         channel = ChannelConfig(
-            name="Test Channel", username="test_channel", affiliation="right-wing"
+            name="Test Channel", tg_chan_name="test_channel", affiliation="right-wing"
         )
         print(f"✅ ChannelConfig: {channel.name} - {channel.affiliation}")
     except Exception as e:
@@ -33,7 +33,7 @@ def test_pydantic_models():
     try:
         invalid_channel = ChannelConfig(
             name="Invalid Channel",
-            username="invalid",
+            tg_chan_name="invalid",
             affiliation="center",  # Invalid affiliation
         )
         print("❌ Should have failed validation")
